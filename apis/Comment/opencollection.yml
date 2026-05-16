@@ -1,0 +1,26 @@
+opencollection: 1.0.0
+
+info:
+  name: Comment
+config:
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ""
+      port: ""
+      auth:
+        username: ""
+        password: ""
+      bypassProxy: ""
+
+request:
+  auth:
+    type: bearer
+    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgxNTMxMjE5LCJpYXQiOjE3Nzg5MzkyMTksImp0aSI6IjAxOTk3NmQyZjcyYjRjMTJiY2U4MmE1YjE2ODA2MGU3IiwidXNlcl9pZCI6IjMifQ.MzDKuUOj0yFjEpfjxoSpUehhJH2QyzaOAVz8nMpUeu4
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git

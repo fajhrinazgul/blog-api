@@ -1,0 +1,56 @@
+info:
+  name: Post List
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://localhost:8000/api/posts/
+  params:
+    - name: limit
+      value: ""
+      type: query
+      disabled: true
+    - name: offset
+      value: ""
+      type: query
+      disabled: true
+    - name: search
+      value: ""
+      type: query
+      disabled: true
+    - name: status
+      value: drafted
+      type: query
+      disabled: true
+    - name: author
+      value: fajhrinazgul
+      type: query
+      disabled: true
+  body:
+    type: multipart-form
+    data:
+      - name: category_slug
+        type: text
+        value: teknologi
+      - name: title
+        type: text
+        value: apa itu pemrograman
+      - name: logo
+        type: file
+        value:
+          - ian-taylor-BloPN4jcI7s-unsplash.jpg
+        contentType: image/jpg
+      - name: content
+        type: text
+        value: testing
+      - name: tag_names
+        type: text
+        value: teknologi, iot
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

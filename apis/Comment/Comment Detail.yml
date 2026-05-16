@@ -1,0 +1,28 @@
+info:
+  name: Comment Detail
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://localhost:8000/api/posts/:slug/comments/:id/
+  params:
+    - name: id
+      value: "24"
+      type: path
+    - name: slug
+      value: belajar-bahasa-pemrograman-golang
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "is_approved": false
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

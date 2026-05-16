@@ -1,0 +1,25 @@
+info:
+  name: Reply Detail
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://localhost:8000/api/posts/:slug/comments/:comment_id/replies/:reply_id/
+  params:
+    - name: reply_id
+      value: "3"
+      type: path
+    - name: slug
+      value: belajar-bahasa-pemrograman-golang
+      type: path
+    - name: comment_id
+      value: "21"
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
