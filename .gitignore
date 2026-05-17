@@ -3,3 +3,6 @@ media/
 static/
 staticfiles/
 apis/*.jpg
+**/migrations/
+**/__pycache__/
+db.sqlite3
