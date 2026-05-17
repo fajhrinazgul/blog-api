@@ -6,3 +6,4 @@ apis/*.jpg
 **/migrations/
 **/__pycache__/
 db.sqlite3
+apis
