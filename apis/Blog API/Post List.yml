@@ -37,9 +37,8 @@ http:
         type: text
         value: apa itu pemrograman
       - name: logo
-        type: file
-        value:
-          - ian-taylor-BloPN4jcI7s-unsplash.jpg
+        type: text
+        value: ""
         contentType: image/jpg
       - name: content
         type: text
