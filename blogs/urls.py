@@ -27,7 +27,7 @@ urlpatterns = [
     ),
     path("api/categories/", views.CategoryListView.as_view(), name="category-list"),
     path(
-        "api/categories/<str:slug>/<int:id>/",
+        "api/categories/<str:slug>/",
         views.CategoryDetailView.as_view(),
         name="category-detail",
     ),

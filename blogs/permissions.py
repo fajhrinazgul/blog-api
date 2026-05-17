@@ -37,3 +37,12 @@ class IsOwnerPostOrCommenterReadOnly(permissions.BasePermission):
             return is_admin_staff
 
         return obj.commenter == request.user
+
+
+class IsOwnerOrCommenter(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if not request.user.is_authenticated:
+            return False
+        v = request.user.is_staff or (request.user == obj.post.author)
+        print(v)
+        return request.user.is_staff or (request.user == obj.post.author)

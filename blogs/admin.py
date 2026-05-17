@@ -5,7 +5,9 @@ from blogs.models import Category, Tag, Post, Comment, CommentReply
 
 
 class CategoryAdmin(admin.ModelAdmin):
-    pass
+    prepopulated_fields = {
+        "slug": ("name",),
+    }
 
 
 class PostAdmin(admin.ModelAdmin):

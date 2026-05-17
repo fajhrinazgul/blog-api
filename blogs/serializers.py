@@ -12,11 +12,20 @@ class CategorySerializer(serializers.HyperlinkedModelSerializer):
     # posts = serializers.HyperlinkedRelatedField(
     #     many=True, read_only=True, view_name="post-detail", lookup_field="slug"
     # )
+    url = serializers.HyperlinkedIdentityField(
+        read_only=True, lookup_field="slug", view_name="category-detail"
+    )
 
     class Meta:
         model = Category
         fields = ["url", "name", "slug"]
-        extra_kwargs = {"url": {"read_only": True, "lookup_field": "slug"}}
+        extra_kwargs = {
+            "url": {
+                "read_only": True,
+                "lookup_field": "slug",
+                "view_name": "category-detail",
+            }
+        }
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -125,6 +134,7 @@ class CommentSerializer(serializers.HyperlinkedModelSerializer):
 
 class PostSerializer(serializers.HyperlinkedModelSerializer):
     category = serializers.StringRelatedField(source="category.name")
+
     tags = TagSerializer(many=True, read_only=True)
     tag_names = serializers.CharField(max_length=50, write_only=True, required=False)
     category_slug = serializers.CharField(max_length=50, write_only=True, required=True)
@@ -219,5 +229,5 @@ class PostSerializer(serializers.HyperlinkedModelSerializer):
 
         if status is not None:
             instance.status = status.upper()
-
+        instance.save()
         return instance

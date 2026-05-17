@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from rest_framework import generics
+from rest_framework.generics import Http404
 from rest_framework.generics import get_object_or_404
 from rest_framework import permissions
 from django.utils import timezone
@@ -13,6 +14,7 @@ from blogs.permissions import (
     IsAdminOrReadOnly,
     IsAdminOrPostOwnerReadOnly,
     IsOwnerPostOrCommenterReadOnly,
+    IsOwnerOrCommenter,
 )
 from blogs.serializers import (
     TagSerializer,
@@ -73,6 +75,7 @@ class PostListView(generics.ListCreateAPIView):
             queryset = queryset.filter(
                 Q(title__icontains=search_param) | Q(content__icontains=search_param)
             )
+
         return queryset
 
 
@@ -149,6 +152,18 @@ class CommentListView(generics.ListCreateAPIView):
         # Base queryset untuk post terkait
         queryset = Comment.objects.filter(post__slug=post_slug)
 
+        # Cek apakah post status itu DRAFTED atau PUBLISHED, jika masih DRAFTED maka tidak bisa di lihat oleh user lain
+        # kecuali si author sendiri
+        post = Post.objects.get(slug=post_slug)
+        is_drafted = False
+        is_author = False
+        if post.status == Post.DRAFTED:
+            is_drafted = True
+        if post.author == user:
+            is_author = True
+        if is_drafted and is_author is False:
+            raise Http404
+
         # Selesaikan :TODO Hanya menampilkan yang di-approve ATAU milik commenter itu sendiri
         if user.is_authenticated:
             # Cek apakah post milik user yang sedang login
@@ -175,8 +190,9 @@ class CommentListView(generics.ListCreateAPIView):
 class CommentDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = CommentSerializer
     permission_classes = [
-        permissions.IsAuthenticatedOrReadOnly,
-        IsOwnerPostOrCommenterReadOnly,
+        # permissions.IsAuthenticated,
+        # # IsOwnerPostOrCommenterReadOnly,
+        IsOwnerOrCommenter,
     ]
     lookup_url_kwarg = "id"
 
