@@ -1,65 +1,142 @@
-# chat/consumers.py
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from .serializers import MessageSerializer
+from .models import Room, Chat
+from .serializers import ChatSerializer
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.me = self.scope["user"]
-        print(self.me)
-        # Cek apakah user sudah terautentikasi (via middleware)
-        if self.me.is_anonymous:
-            await self.close()
+        self.room_slug = self.scope["url_route"]["kwargs"]["room_slug"]
+        self.room_group_name = f"chat_{self.room_slug}"
+        self.user = self.scope.get("user")
+
+        # 1. Validasi Autentikasi dari Middleware
+        if not self.user or self.user.is_anonymous:
+            await self.close(code=4001)  # Tutup koneksi jika tidak terautentikasi
             return
 
-        # Mengambil ID lawan bicara dari URL (misal: /ws/chat/12/)
-        self.other_user_id = self.scope["url_route"]["kwargs"]["user_id"]
+        # 2. Validasi apakah Room ada dan User adalah member dari room tersebut
+        if not await self.is_room_member(self.room_slug, self.user):
+            await self.close(code=4003)  # Forbidden jika bukan member room
+            return
 
-        # Logika mengurutkan ID untuk nama Room yang unik
-        user_ids = sorted([int(self.me.id), int(self.other_user_id)])
-        self.room_group_name = f"chat_{user_ids[0]}_{user_ids[1]}"
-
-        # Gabung ke room group
+        # Join room group
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
+        # [BARU] Begitu user TERKONEKSI (membuka chat), otomatis tandai pesan lama sebagai TERBACA
+        await self.mark_room_as_read()
+
     async def disconnect(self, close_code):
-        if hasattr(self, "room_group_name") and self.channel_layer:
+        # Leave room group
+        if hasattr(self, "room_group_name"):
             await self.channel_layer.group_discard(
                 self.room_group_name, self.channel_name
             )
 
-    # Menerima pesan dari WebSocket (Client)
+    # Menerima pesan dari WebSocket (Client -> Server)
     async def receive(self, text_data):
-        data = json.loads(text_data)
-        content = data.get("content")
+        try:
+            data = json.loads(text_data)
+            action = data.get("action", "send_message")
 
-        if content:
-            # Simpan ke database secara asynchronous
-            message_data = await self.save_message(
-                self.me.id, self.other_user_id, content
-            )
+            # Jika action adalah mengirim pesan
+            if action == "send_message":
+                message_content = data.get("message", "").strip()
+                if not message_content:
+                    return
 
-            # Kirim pesan ke group room agar user lawan menerima
-            await self.channel_layer.group_send(
-                self.room_group_name, {"type": "chat_message", "message": message_data}
-            )
+                chat_data = await self.save_message(
+                    self.room_slug, self.user, message_content
+                )
 
-    # Handler untuk event 'chat_message'
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {"type": "chat_message", "message_data": chat_data},
+                )
+            # LOGIKA 2: Jika action-nya adalah menandai pesan terbaca (misal dipicu saat user scroll ke bawah)
+            elif action == "read_messages":
+                await self.mark_room_as_read()
+
+        except Exception as e:
+            import traceback
+
+            print("WEBSOCKET RECEIVE ERROR:", str(e))
+            traceback.print_exc()  # Ini akan memunculkan baris error di terminal terminal Django Anda
+
+    # Menerima pesan dari group room (Server -> Client)
     async def chat_message(self, event):
-        message = event["message"]
+        message_data = event["message_data"]
 
-        # Kirim data ke client (browser/aplikasi mobile)
-        await self.send(text_data=json.dumps(message))
+        # Kirim pesan asli ke WebSocket Client dalam format JSON
+        await self.send(text_data=json.dumps(message_data))
 
-    # Helper untuk menyimpan pesan menggunakan DRF Serializer di thread terpisah
+    # [BARU] Handler untuk memberi tahu client lain bahwa pesan telah dibaca
+    async def messages_read_notification(self, event):
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "action": "messages_read",
+                    "reader_id": event["reader_id"],
+                    "room_slug": self.room_slug,
+                }
+            )
+        )
+
+    # --- DATABASE METHODS (Harus Sync) ---
+
+    # 1. Ini fungsi utama asinkron (Berjalan di thread utama yang punya event loop)
+    async def mark_room_as_read(self):
+        """Menandai semua pesan dari orang lain sebagai terbaca"""
+        # Panggil fungsi DB dan tunggu hasilnya (True jika ada pesan yang di-update)
+        has_updated = await self._update_messages_in_db()
+
+        # Jika ada pesan yang berhasil di-update, lakukan broadcast dari sini
+        if has_updated:
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {"type": "messages_read_notification", "reader_id": self.user.id},
+            )
+
+    # 2. Ini fungsi database murni (Dipisah, tanpa ada kode async di dalamnya)
     @database_sync_to_async
-    def save_message(self, sender_id, receiver_id, content):
-        data = {"sender": sender_id, "receiver": receiver_id, "content": content}
-        serializer = MessageSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
+    def _update_messages_in_db(self):
+        """Murni melakukan query ORM Django untuk update data"""
+        unread_chats = Chat.objects.filter(
+            room__slug=self.room_slug, is_read=False
+        ).exclude(sender=self.user)
+
+        if unread_chats.exists():
+            unread_chats.update(is_read=True)
+            return True  # Beritahu fungsi utama kalau ada yang di-update
+
+        return False  # Tidak ada pesan baru yang perlu ditandai
+
+    @database_sync_to_async
+    def is_room_member(self, slug, user):
+        """Memastikan room ada dan user terdaftar di dalam room tersebut"""
+        try:
+            room = Room.objects.get(slug=slug)
+            return room.members.filter(id=user.id).exists()
+        except Room.DoesNotExist:
+            return False
+
+    @database_sync_to_async
+    def save_message(self, slug, user, content):
+        try:
+            # Cari room murni berdasarkan slug
+            room = Room.objects.get(slug=slug)
+
+            # Buat objek chat
+            chat = Chat.objects.create(
+                room=room,
+                sender=user,  # Ini adalah user member yang sedang terkoneksi
+                content=content,
+            )
+
+            serializer = ChatSerializer(chat)
             return serializer.data
-        return {"error": "Invalid data"}
+        except Exception as e:
+            print("ERROR DI SAVE MESSAGE:", str(e))
+            raise e
