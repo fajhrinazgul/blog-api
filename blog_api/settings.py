@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-nv@%5+e0rwvuwha$ko@^1p0ug9pug4pkwg4rlr!k8++7c5q3l8"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
@@ -96,8 +96,12 @@ CHANNEL_LAYERS = {
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "blogs",
+        "HOST": "localhost",
+        "PORT": 3306,
+        "USER": "root",
+        "PASSWORD": "root",
     }
 }
 
@@ -168,9 +172,9 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=30),  # Token berlaku 1 jam
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),  # Token berlaku 1 jam
     # Refresh token berlaku 1 hari
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),  # Header: Bearer <token>

@@ -7,7 +7,7 @@ AUTH_USER_MODEL = getattr(settings, "AUTH_USER_MODEL", "users.User")
 
 class Room(models.Model):
     name = models.CharField(_("name"), max_length=30, unique=True)
-    slug = models.CharField(unique=True)
+    slug = models.SlugField(unique=True)
     members = models.ManyToManyField(AUTH_USER_MODEL, related_name="room_members")
     admin = models.ForeignKey(
         AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="room_admins"

@@ -41,7 +41,7 @@ def get_post_image_path(instance, filename):
 
 
 class Tag(models.Model):
-    name = models.CharField(_("name"), unique=True)
+    name = models.CharField(_("name"), max_length=20, unique=True)
 
     def __str__(self):
         return self.name
@@ -69,7 +69,7 @@ class Post(models.Model):
     title = models.CharField(_("title"), max_length=100)
     slug = models.SlugField(unique=True, blank=True, null=True)
     logo = models.ImageField(upload_to=get_post_image_path)
-    summary = models.CharField(blank=True, null=True, editable=False)
+    summary = models.CharField(max_length=255, blank=True, null=True, editable=False)
     content = models.TextField()
     tags = models.ManyToManyField(Tag, related_name="posts", blank=True)
     views = models.PositiveIntegerField(default=0)
