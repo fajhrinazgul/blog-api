@@ -26,3 +26,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+
+    def get_initial_name(self):
+        first = self.first_name[0].capitalize()
+        last = self.last_name[0].capitalize()
+        return f"{first}{last}"

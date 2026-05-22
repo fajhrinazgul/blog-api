@@ -134,13 +134,14 @@ class CommentSerializer(serializers.HyperlinkedModelSerializer):
 
 class PostSerializer(serializers.HyperlinkedModelSerializer):
     category = serializers.StringRelatedField(source="category.name")
-
+    cat_slug = serializers.SerializerMethodField()
     tags = TagSerializer(many=True, read_only=True)
     tag_names = serializers.CharField(max_length=50, write_only=True, required=False)
     category_slug = serializers.CharField(max_length=50, write_only=True, required=True)
     author = serializers.HyperlinkedRelatedField(
         view_name="user-detail", lookup_field="username", read_only=True
     )
+
     # comments = serializers.
 
     class Meta:
@@ -150,6 +151,7 @@ class PostSerializer(serializers.HyperlinkedModelSerializer):
             "category",
             "tag_names",
             "category_slug",
+            "cat_slug",
             "author",
             "title",
             "slug",
@@ -231,3 +233,6 @@ class PostSerializer(serializers.HyperlinkedModelSerializer):
             instance.status = status.upper()
         instance.save()
         return instance
+
+    def get_cat_slug(self, obj):
+        return obj.category.slug

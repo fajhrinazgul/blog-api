@@ -36,45 +36,71 @@ class PostListView(generics.ListCreateAPIView):
         user = self.request.user
         queryset = Post.objects.all()
 
-        status_param = self.request.query_params.get("status", "PUBLISHED")
+        # 1. Ambil semua parameter dari URL
+        status_param = self.request.query_params.get("status", "PUBLISHED").upper()
         author_param = self.request.query_params.get("author", None)
         search_param = self.request.query_params.get("search", None)
+        order_param = self.request.query_params.get("order_by", "-created_at")
 
-        # Filter berdasarkan author
-        if author_param is not None:
-            queryset = queryset.filter(author__username=author_param)
+        # 2. LOGIKA FILTERING STATUS & AUTHOR
 
-        # Filter berdasarkan status dengan pengecekan kondisi DRAFTED
-        if status_param is not None:
-            status_upper = status_param.upper()
-
-            if status_upper == "DRAFTED":
-                # Jika user belum login: OTomatis tidak boleh melihat data DRAFTED
-                if not user.is_authenticated:
-                    raise PermissionDenied(_("You must login to get DRAFTED data."))
-                # jika user sudah login: Hanya filter draft milik user yang login
+        # Kondisi A: User minta melihat DRAFTED secara spesifik
+        if status_param == "DRAFTED":
+            if user.is_authenticated:
+                # Hanya tampilkan draft milik user itu sendiri
                 queryset = queryset.filter(status="DRAFTED", author=user)
             else:
-                queryset = queryset.filter(status=status_upper)
-        else:
-            # KONDISI JIKA URL TANPA PARAMETER STATUS (?status tidak diisi)
-            # Standarnya, user anonim atau user lain tidak boleh melihat DRAFT orang lain di list utama.
-            if user.is_authenticated:
-                # Tampilkan semua yang PUBLISHED, ATAU yang berstatus DRAFT tetapi milik user itu sendiri
+                # User belum login tapi minta draft? Kembalikan query kosong (kosongkan posts)
+                return Post.objects.none()
+
+        # Kondisi B: User minta filter berdasarkan Author tertentu via URL (?author=username)
+        elif author_param:
+            if user.is_authenticated and user.username == author_param:
+                # Jika dia adalah author-nya, tampilkan PUBLISHED dan DRAFTED milik dia
                 queryset = queryset.filter(
-                    Q(status="PUBLISHED") | Q(status="DRAFTED"), author=user
+                    author__username=author_param, status__in=["PUBLISHED", "DRAFTED"]
+                ).order_by("-created_at")
+            else:
+                # Jika bukan author-nya atau belum login, HANYA boleh lihat yang PUBLISHED
+                queryset = queryset.filter(
+                    author__username=author_param, status="PUBLISHED"
+                ).order_by("-created_at")
+
+        # Kondisi C: Default (Akses umum tanpa parameter spesifik atau status=PUBLISHED)
+        else:
+            # Jika user sudah login, dia bisa melihat PUBLISHED milik siapa saja + DRAFTED milik dia sendiri
+            if user.is_authenticated:
+                queryset = queryset.filter(
+                    Q(status="PUBLISHED") | Q(status="DRAFTED", author=user)
                 )
             else:
-                # Jika anonim, hanya boleh melihat yang PUBLISHED saja
+                # Jika belum login, mutlak hanya melihat yang PUBLISHED
                 queryset = queryset.filter(status="PUBLISHED")
 
-        # Filter search parameter
-        if search_param is not None:
-            # icontains = case-insensitive search (tidak peduli huruf besar/kecil)
-            # Mencari apakah kata kunci ada di 'title' ATAU 'content'
+        # 3. LOGIKA SEARCH (Title, Slug, Content)
+        if search_param:
             queryset = queryset.filter(
-                Q(title__icontains=search_param) | Q(content__icontains=search_param)
+                Q(title__icontains=search_param)
+                | Q(slug__icontains=search_param)
+                | Q(content__icontains=search_param)
             )
+
+        # 4. LOGIKA ORDERING (Validasi parameter agar aman)
+        # Kita list field apa saja yang diizinkan untuk di-order oleh user
+        allowed_ordering = [
+            "created_at",
+            "-created_at",
+            "views",
+            "-views",
+            "title",
+            "-title",
+        ]
+
+        if order_param in allowed_ordering:
+            queryset = queryset.order_by(order_param)
+        else:
+            # Jika user memasukkan order_by yang aneh-aneh, kembalikan ke default
+            queryset = queryset.order_by("-created_at")
 
         return queryset
 
