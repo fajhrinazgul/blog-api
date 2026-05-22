@@ -18,7 +18,7 @@ class CategorySerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Category
-        fields = ["url", "name", "slug"]
+        fields = ["url", "id", "name", "slug"]
         extra_kwargs = {
             "url": {
                 "read_only": True,
@@ -40,20 +40,54 @@ class TagSerializer(serializers.ModelSerializer):
 #         fields = ["id", "username"]
 
 
+class CommentReplyInitialSerializer(serializers.ModelSerializer):
+    avatar = serializers.SerializerMethodField()
+    initial_name = serializers.SerializerMethodField()
+    full_name = serializers.SerializerMethodField()
+    username = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CommentReply
+        fields = "__all__"
+
+    def get_avatar(self, obj):
+        request = self.context.get("request")
+        if obj.commenter.avatar and hasattr(obj.commenter.avatar, "url"):
+            return request.build_absolute_uri(obj.commenter.avatar.url)
+        return None
+
+    def get_initial_name(self, obj):
+        return obj.commenter.get_initial_name()
+
+    def get_full_name(self, obj):
+        return obj.commenter.get_full_name()
+
+    def get_username(self, obj):
+        return obj.commenter.username
+
+
 class CommentReplySerializer(serializers.HyperlinkedModelSerializer):
     comment = serializers.SerializerMethodField()
     commenter = serializers.HyperlinkedRelatedField(
         view_name="user-detail", lookup_field="username", read_only=True
     )
     url = serializers.SerializerMethodField()
+    avatar = serializers.SerializerMethodField()
+    initial_name = serializers.SerializerMethodField()
+    full_name = serializers.SerializerMethodField()
+    username = serializers.SerializerMethodField()
 
     class Meta:
         model = CommentReply
         fields = [
             "url",
+            "id",
             "comment",
             "commenter",
-            "title",
+            "avatar",
+            "initial_name",
+            "full_name",
+            "username",
             "content",
             "is_approved",
             "created_at",
@@ -90,6 +124,21 @@ class CommentReplySerializer(serializers.HyperlinkedModelSerializer):
             )
         return None
 
+    def get_avatar(self, obj):
+        request = self.context.get("request")
+        if obj.commenter.avatar and hasattr(obj.commenter.avatar, "url"):
+            return request.build_absolute_uri(obj.commenter.avatar.url)
+        return None
+
+    def get_initial_name(self, obj):
+        return obj.commenter.get_initial_name()
+
+    def get_full_name(self, obj):
+        return obj.commenter.get_full_name()
+
+    def get_username(self, obj):
+        return obj.commenter.username
+
 
 class CommentSerializer(serializers.HyperlinkedModelSerializer):
     commenter = serializers.HyperlinkedRelatedField(
@@ -98,21 +147,31 @@ class CommentSerializer(serializers.HyperlinkedModelSerializer):
     post = serializers.HyperlinkedRelatedField(
         view_name="post-detail", read_only=True, lookup_field="slug"
     )
-    # replies = CommentReplySerializer(many=True, read_only=True)
     url = serializers.SerializerMethodField()
+    replies = CommentReplyInitialSerializer(
+        many=True, read_only=True, source="comments"
+    )
+    avatar = serializers.SerializerMethodField()
+    initial_name = serializers.SerializerMethodField()
+    full_name = serializers.SerializerMethodField()
+    username = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
         fields = [
             "url",
+            "id",
             "post",
             "commenter",
-            "title",
+            "avatar",
+            "initial_name",
+            "full_name",
+            "username",
             "content",
             "is_approved",
-            # "replies",
             "created_at",
             "updated_at",
+            "replies",
         ]
 
     def get_url(self, obj):
@@ -131,6 +190,21 @@ class CommentSerializer(serializers.HyperlinkedModelSerializer):
             )
         return None
 
+    def get_avatar(self, obj):
+        request = self.context.get("request")
+        if obj.commenter.avatar and hasattr(obj.commenter.avatar, "url"):
+            return request.build_absolute_uri(obj.commenter.avatar.url)
+        return None
+
+    def get_initial_name(self, obj):
+        return obj.commenter.get_initial_name()
+
+    def get_full_name(self, obj):
+        return obj.commenter.get_full_name()
+
+    def get_username(self, obj):
+        return obj.commenter.username
+
 
 class PostSerializer(serializers.HyperlinkedModelSerializer):
     category = serializers.StringRelatedField(source="category.name")
@@ -141,18 +215,24 @@ class PostSerializer(serializers.HyperlinkedModelSerializer):
     author = serializers.HyperlinkedRelatedField(
         view_name="user-detail", lookup_field="username", read_only=True
     )
-
+    author_name = serializers.SerializerMethodField()
+    author_avatar = serializers.SerializerMethodField()
+    author_initial_name = serializers.SerializerMethodField()
     # comments = serializers.
 
     class Meta:
         model = Post
         fields = [
             "url",
+            "id",
             "category",
             "tag_names",
             "category_slug",
             "cat_slug",
             "author",
+            "author_name",
+            "author_initial_name",
+            "author_avatar",
             "title",
             "slug",
             "logo",
@@ -236,3 +316,15 @@ class PostSerializer(serializers.HyperlinkedModelSerializer):
 
     def get_cat_slug(self, obj):
         return obj.category.slug
+
+    def get_author_name(self, obj):
+        return obj.author.get_full_name()
+
+    def get_author_avatar(self, obj):
+        request = self.context.get("request")
+        if obj.author.avatar and hasattr(obj.author.avatar, "url"):
+            return request.build_absolute_uri(obj.author.avatar.url)
+        return None
+
+    def get_author_initial_name(self, obj):
+        return obj.author.get_initial_name()

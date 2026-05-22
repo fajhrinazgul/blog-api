@@ -133,7 +133,7 @@ class PostViewLog(models.Model):
 
 
 class BaseComment(models.Model):
-    title = models.CharField(_("title"), max_length=100)
+    # title = models.CharField(_("title"), max_length=100)
     content = models.TextField(_("content"))
     is_approved = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)

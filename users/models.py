@@ -4,12 +4,19 @@ from django.utils import timezone
 from users.managers import UserManager
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 
+def get_avatar_path(instance, filename):
+    import os.path
+    import uuid
+
+    ext = os.path.splitext(filename)[1]
+    return os.path.join("avatar", instance.username, str(uuid.uuid5(uuid.NAMESPACE_DNS, instance.username)).replace("-", "") + ext)
 
 class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(_("first name"), max_length=30)
     last_name = models.CharField(_("last name"), max_length=30)
     username = models.CharField(max_length=20, unique=True)
     email = models.EmailField(unique=True)
+    avatar = models.ImageField(upload_to=get_avatar_path, blank=True, null=True)
     is_superuser = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -31,3 +38,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         first = self.first_name[0].capitalize()
         last = self.last_name[0].capitalize()
         return f"{first}{last}"
+
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}"
